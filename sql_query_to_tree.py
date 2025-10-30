@@ -7,23 +7,8 @@ def setup_input_file(file_path):
     """Creates a temporary file containing a sample SQL query."""
     
     # A slightly more complex query to demonstrate JOINS and Aliases
-    sample_query = """
-SELECT 
-    e.first_name, 
-    d.department_name
-FROM 
-    employees AS e
-JOIN 
-    departments AS d 
-    ON e.department_id = d.id
-WHERE 
-    e.salary > 50000 
-    AND d.location = 'NYC'
-ORDER BY 
-    e.last_name ASC;
-"""
-    with open(file_path, "w") as f:
-        f.write(sample_query.strip())
+    with open(file_path, "r") as f:
+        sample_query = f.read()
     print(f"✅ Created input file: '{file_path}' with a sample query.")
     print("-" * 50)
     print(f"--- Query from '{file_path}' ---")

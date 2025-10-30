@@ -1,13 +1,13 @@
 SELECT 
-    e.first_name, 
+    c.first_name, 
     d.department_name
 FROM 
-    employees AS e
+    employees AS c
 JOIN 
     departments AS d 
-    ON e.department_id = d.id
+    ON c.department_id = d.id
 WHERE 
-    e.salary > 50000 
+    c.salary > 50000 
     AND d.location = 'NYC'
 ORDER BY 
-    e.last_name ASC;
+    c.last_name ASC;
