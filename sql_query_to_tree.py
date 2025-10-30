@@ -1,20 +1,5 @@
 import sqlglot
 from sqlglot.expressions import Select, From, Where, Column, Literal, Binary, Join
-import os
-
-# --- 1. SETUP: Create the Input File ---
-def setup_input_file(file_path):
-    """Creates a temporary file containing a sample SQL query."""
-    
-    # A slightly more complex query to demonstrate JOINS and Aliases
-    with open(file_path, "r") as f:
-        sample_query = f.read()
-    print(f"✅ Created input file: '{file_path}' with a sample query.")
-    print("-" * 50)
-    print(f"--- Query from '{file_path}' ---")
-    print(sample_query.strip())
-    print("-" * 50)
-
 
 # --- 2. CORE LOGIC: Parsing and Tree Generation ---
 
@@ -116,9 +101,6 @@ def process_join_or_table(expression, indent):
 if __name__ == "__main__":
     file_path = "query.txt"
 
-    # Setup the input file
-    setup_input_file(file_path)
-
     # Read the query
     sql_to_parse = read_sql_file(file_path)
 
@@ -131,7 +113,3 @@ if __name__ == "__main__":
             print("--- Relational Algebra Query Tree (Execution Order: Bottom-Up) ---")
             output_relational_tree(ast_root)
             print("\n" * 2)
-
-    # Cleanup the temporary file
-    # os.remove(file_path)
-    # print(f"Cleaned up temporary file: '{file_path}'")
