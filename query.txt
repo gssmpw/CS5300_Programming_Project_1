@@ -1,13 +1,6 @@
-SELECT 
-    c.first_name, 
-    d.department_name
-FROM 
-    employees AS c
-JOIN 
-    departments AS d 
-    ON c.department_id = d.id
-WHERE 
-    c.salary > 50000 
-    AND d.location = 'NYC'
-ORDER BY 
-    c.last_name ASC;
+SELECT dept_name, AVG(salary)
+FROM Employees E, Departments D
+WHERE E.dept_id = D.id AND E.salary > 50000
+GROUP BY dept_name
+HAVING AVG(salary) > 60000
+ORDER BY AVG(salary) DESC;

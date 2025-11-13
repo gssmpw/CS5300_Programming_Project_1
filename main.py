@@ -51,13 +51,13 @@ def find_tables(expression):
     return tables
 
 
-# Takes two arrays one containing the entire expresion minus the from clause
-# and one containing the from clause. Then returns a canoncical query tree.
-def build_canonical(expresion, from_clause):
+# Takes two arrays one containing the entire expression minus the from clause
+# and one containing the from clause. Then returns a canonicical query tree.
+def build_canonical(expression, from_clause):
     tree = []
 
     # handles the expression
-    for i in expresion:
+    for i in expression:
         if i != None:
             new_node = Node(i)
             tree.append(new_node)
