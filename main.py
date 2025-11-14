@@ -31,12 +31,16 @@ def find_projection(expression):
     select_clauses = expression.find_all(exp.Select)
     projections = []
 
+    projections.append("PROJECTION")
+
     # Iterate through the found Select expressions (there should typically be one for a single query)
     for select_clause in select_clauses:
         # You can access the expressions within the SELECT clause
         for projection in select_clause.expressions:
             projections.append(projection.sql())
     
+    projections = " ".join(projections)
+
     return projections
 
 
@@ -58,6 +62,8 @@ def build_canonical(expression, from_clause):
 
     # handles the expression
     for i in expression:
+        if "WHERE" in str(i):
+            i = str(i).replace("WHERE", "SELECT")
         if i != None:
             new_node = Node(i)
             tree.append(new_node)
@@ -102,6 +108,33 @@ def print_tree(tree):
     return
 
 
+# Take in a tree and separate the conjunctive selection conditions
+def cascade_selection(tree_node):
+    if "SELECT" in str(tree_node.children[0].data):
+        tree_node.children[0].data = str(tree_node.children[0].data).split("AND")
+        tree_node.children[0].data = "SELECT".join(tree_node.children[0].data)
+        return
+    elif tree_node.children == []:
+        return
+    else:
+        cascade_selection(tree_node.children[0])
+    return
+
+
+# Take in a tree node and push down the selections to an appropiate spot
+def selection_down(tree_node):
+    select_statements = []
+
+    if "SELECT" in str(tree_node.children[0].data):
+        select_statements = str(tree_node.children[0].data).strip().split("SELECT")
+    elif tree_node.children == []:
+        return
+    else:
+        selection_down(tree_node.children[0])
+
+    return
+
+
 
 def main():
     with open("query.txt", "r") as file:
@@ -113,7 +146,20 @@ def main():
 
     tree = build_canonical(starting_arr, tables)
 
+    # Print the canonical query tree
+    print("---------------CANONICAL QUERY TREE---------------")
     print_tree(tree)
+    print("--------------------------------------------------")
+
+    # Perform the cascade of selections and print out the result
+    cascade_selection(tree[0])
+    print("--------HEURISTIC 1: CASCADE OF SELECTIONS--------")
+    print_tree(tree)
+    print("--------------------------------------------------")
+
+    # Perform the moving down of selections as low as possible
+    selection_down(tree[0])
+
 
     return
 
