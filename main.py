@@ -24,6 +24,13 @@ class Node:
             self.children.remove(child_node)
             child_node.parent = None
         return
+    
+    # Inserts the node into the tree
+    def insert_node(self, parent_node, child_node):
+        parent_node.remove_child(child_node)
+        parent_node.add_child(self)
+        self.add_child(child_node)
+        return
 
 
 # Used to find the projecitons for the canonical query tree 
@@ -94,17 +101,12 @@ def build_canonical(expression, from_clause):
 
 
 # Function for printing trees
-def print_tree(tree):
-    for i in range(len(tree)):
-        if i == 0:
-            print(tree[0].data)
-            print("   ", tree[0].children[0].data)
-        elif i + 2 < len(tree):
-            for j in range(len(tree[i].children)):
-                print("   "*(i + 1), tree[i].children[j].data)
-        else:
-            for j in range(len(tree[i].children)):
-                print("   "*(i + 1), tree[i].children[j].data)
+def print_tree(tree_node, depth):
+    if tree_node is not None:
+        print("    " * depth, tree_node.data)
+        if tree_node.children != []:
+            for child_node in tree_node.children:
+                print_tree(child_node, depth + 1)
     return
 
 
@@ -118,13 +120,58 @@ def cascade_selection(tree_node):
         return
     else:
         cascade_selection(tree_node.children[0])
+
     return
+
+
+# Function for finding all leafs in our tree
+def find_leaves(tree_node, leaf_nodes):
+    if tree_node is not None:
+        if tree_node.children == []:
+            leaf_nodes.append(tree_node)
+        else:
+            for child_node in tree_node.children:
+                find_leaves(child_node, leaf_nodes)
+    
+    return
+
+
+# Takes 2 nodes and returns the cartesian product node that joins them
+# IN PROGRESS
+def find_common_cartesian(node1, node2):
+    cart1 = node1
+    cart2 = node2
+
+    if cart1.data == "X" and cart2.data == "X":
+        print('1', cart1.data, cart2.data)
+        if cart1 == cart2:
+            return cart1, cart2
+    elif cart1.data == "X" or "SELECT" in str(cart1.data):
+        print('2', cart1.data, cart2.data)
+        cart1, cart2 = find_common_cartesian(cart1.parent, cart2)
+    elif cart2.data == "X" or "SELECT" in str(cart2.data):
+        print('3', cart1.data, cart2.data)
+        cart1, cart2 = find_common_cartesian(cart1, cart2.parent)
+
+    '''elif cart1.data == "X" and cart2.data != "X":
+        cart1, cart2 = find_common_cartesian(cart1, cart2.parent)
+    elif cart1.data != "X" and cart2.data == "X":
+        cart1, cart2 = find_common_cartesian(cart1.parent, cart2)
+    else:
+        cart1, cart2 = find_common_cartesian(cart1.parent, cart2.parent)'''
+    
+    print('4', cart1.data, cart2.data)
+    
+    return cart1, cart2
 
 
 # Take in a tree node and push down the selections to an appropiate spot
 def selection_down(tree_node):
     select_statements = []
+    leaf_nodes = []
+    find_leaves(tree_node, leaf_nodes)
 
+    # Find all selections that need to be pushed down
     if "SELECT" in str(tree_node.children[0].data):
         select_statements = str(tree_node.children[0].data).strip().split("SELECT")
     elif tree_node.children == []:
@@ -132,8 +179,28 @@ def selection_down(tree_node):
     else:
         selection_down(tree_node.children[0])
 
-    return
+    # Select one selection from the list of selections to be moved
+    for i in select_statements:
+        select = i.strip().split()
+        if i != '':
 
+            # Handles selections involving more than one table
+            # IN PROGRESS
+            if select[0][0].isupper and select[0][1] == '.' and select[2][0].isupper and select[2][1] == '.':
+                table1 = leaf_nodes[1].parent
+                table2 = leaf_nodes[2].parent
+                cart_node = find_common_cartesian(table1, table2)[0]
+                sel_node = Node("SELECT" + i)
+                sel_node.insert_node(cart_node.parent, cart_node)
+
+            # Handles selections involving a singele table
+            else:
+                for j in leaf_nodes:
+                    if j.data[-1] == select[0][0]:
+                        sel_node = Node("SELECT" + i)
+                        sel_node.insert_node(j.parent, j)
+
+    return
 
 
 def main():
@@ -148,18 +215,20 @@ def main():
 
     # Print the canonical query tree
     print("---------------CANONICAL QUERY TREE---------------")
-    print_tree(tree)
-    print("--------------------------------------------------")
+    print_tree(tree[0], 0)
+    print("--------------------------------------------------\n")
 
     # Perform the cascade of selections and print out the result
     cascade_selection(tree[0])
     print("--------HEURISTIC 1: CASCADE OF SELECTIONS--------")
-    print_tree(tree)
-    print("--------------------------------------------------")
+    print_tree(tree[0], 0)
+    print("--------------------------------------------------\n")
 
     # Perform the moving down of selections as low as possible
     selection_down(tree[0])
-
+    print("--------HEURISTIC 2: PUSH SELECTIONS DOWN---------")
+    print_tree(tree[0], 0)
+    print("--------------------------------------------------\n")
 
     return
 
