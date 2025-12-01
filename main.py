@@ -138,31 +138,16 @@ def find_leaves(tree_node, leaf_nodes):
 
 # Takes 2 nodes and returns the cartesian product node that joins them
 # IN PROGRESS
-def find_common_cartesian(node1, node2):
-    cart1 = node1
-    cart2 = node2
+def find_common_cartesian(start, target):
 
-    if cart1.data == "X" and cart2.data == "X":
-        print('1', cart1.data, cart2.data)
-        if cart1 == cart2:
-            return cart1, cart2
-    elif cart1.data == "X" or "SELECT" in str(cart1.data):
-        print('2', cart1.data, cart2.data)
-        cart1, cart2 = find_common_cartesian(cart1.parent, cart2)
-    elif cart2.data == "X" or "SELECT" in str(cart2.data):
-        print('3', cart1.data, cart2.data)
-        cart1, cart2 = find_common_cartesian(cart1, cart2.parent)
-
-    '''elif cart1.data == "X" and cart2.data != "X":
-        cart1, cart2 = find_common_cartesian(cart1, cart2.parent)
-    elif cart1.data != "X" and cart2.data == "X":
-        cart1, cart2 = find_common_cartesian(cart1.parent, cart2)
-    else:
-        cart1, cart2 = find_common_cartesian(cart1.parent, cart2.parent)'''
+    if start == target:
+        return target
+    elif start.data == "X" or "SELECT" in str(start.data):
+        check = find_common_cartesian(start.parent, target)
+        if check:
+            return check
     
-    print('4', cart1.data, cart2.data)
-    
-    return cart1, cart2
+    return
 
 
 # Take in a tree node and push down the selections to an appropiate spot
@@ -185,13 +170,32 @@ def selection_down(tree_node):
         if i != '':
 
             # Handles selections involving more than one table
-            # IN PROGRESS
             if select[0][0].isupper and select[0][1] == '.' and select[2][0].isupper and select[2][1] == '.':
-                table1 = leaf_nodes[1].parent
-                table2 = leaf_nodes[2].parent
-                cart_node = find_common_cartesian(table1, table2)[0]
-                sel_node = Node("SELECT" + i)
-                sel_node.insert_node(cart_node.parent, cart_node)
+
+                # Finds the two tables being joined
+                node1 = leaf_nodes[0]
+                node2 = leaf_nodes[0]
+                for k in leaf_nodes:
+                    if str(k.data)[-1] == select[0][0]:
+                        node1 = k
+                    elif str(k.data)[-1] == select[2][0]:
+                        node2 = k
+
+                # Find the first cartesion that is a parent of each node
+                while node1.data != "X":
+                    node1 = node1.parent
+                while node2.data != "X":
+                    node2 = node2.parent
+
+                # Run the find common cartesian to find the place where the select should be inserted
+                result1 = find_common_cartesian(node1, node2)
+                result2 = find_common_cartesian(node2, node1)
+                if result1:
+                    sel_node = Node("SELECT" + str(i))
+                    sel_node.insert_node(result1.parent, result1)
+                elif result2:
+                    sel_node = Node("SELECT" + str(i))
+                    sel_node.insert_node(result2.parent, result2)
 
             # Handles selections involving a singele table
             else:
@@ -203,9 +207,34 @@ def selection_down(tree_node):
     return
 
 
+# Checks the tree for any cartesian and selects that need to be switched into joins and returns an updated tree
+def create_joins(tree_node):
+    # Check for a select condition with a cartesian child
+    if tree_node is not None and "SELECT" in str(tree_node.data) and tree_node.children[0].data == "X":
+        # Update the selct to a join
+        tree_node.data = str(tree_node.data).replace("SELECT", "JOIN")
+        cart_node = tree_node.children[0]
+
+        # Handles removing of the cartesian node from the tree
+        for i in range(len(cart_node.children)):
+            tree_node.add_child(cart_node.children[i])
+        tree_node.remove_child(cart_node)
+
+        if tree_node.children != []:
+            for child_node in tree_node.children:
+                create_joins(child_node)
+
+    if tree_node.children != []:
+        for child_node in tree_node.children:
+            create_joins(child_node)
+    return
+
+
+
 def main():
-    with open("query.txt", "r") as file:
-        query = file.read()
+    with open("input1.txt", "r") as file:
+        input = file.read()
+        schema, query = input.split("-- SQL Query --")
     
     expression = sqlglot.parse_one(query)
     starting_arr = [expression.find(exp.Order), find_projection(expression), expression.find(exp.Having), expression.find(exp.Group), expression.find(exp.Where)]
@@ -226,9 +255,27 @@ def main():
 
     # Perform the moving down of selections as low as possible
     selection_down(tree[0])
+    for i in tree:
+        if "SELECT" in str(i.data):
+            parent = i.parent
+            parent.remove_child(i)
+            parent.add_child(i.children[0])
+            break            
     print("--------HEURISTIC 2: PUSH SELECTIONS DOWN---------")
     print_tree(tree[0], 0)
     print("--------------------------------------------------\n")
+
+    # SELECTIVITY
+
+
+    # Merge selections and cartesians into joins
+    create_joins(tree[0])
+    print("----HEURISTIC 4: Replace Cartesian + Selection----")
+    print_tree(tree[0], 0)
+    print("--------------------------------------------------\n")
+
+
+    # Add projection throughout the query tree
 
     return
 
