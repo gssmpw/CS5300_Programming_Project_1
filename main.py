@@ -229,6 +229,36 @@ def create_joins(tree_node):
             create_joins(child_node)
     return
 
+# Adds projections to the query tree in the correct places
+def add_projections(tree_node, dict):
+    if "PROJECTION" in str(tree_node.data):
+        dict = {}
+        proj = str(tree_node.data).strip().split()[1:]
+        for i in proj:
+            temp = i.split('.')
+            dict.update({temp[0]:temp[0] + "." + temp[1]})
+        add_projections(tree_node.children[0], dict)
+    elif "JOIN" in str(tree_node.data):
+        join = str(tree_node.data).strip().split()
+        att1 = join[1].split('.')
+        att2 = join[3].split('.')
+        dict[att1[0]] = dict.setdefault(att1[0], "") + " " + att1[0] + "." + att1[1]
+        dict[att2[0]] = dict.setdefault(att2[0], "") + " " + att2[0] + "." + att2[1]
+        for i in reversed(range(len(tree_node.children))):
+            if "SELECT" in str(tree_node.children[i].data):
+                table = str(tree_node.children[i].children[0].data)[-1]
+            elif "JOIN" in str(tree_node.children[i].data):
+                add_projections(tree_node.children[i], dict)
+            else:
+                table = str(tree_node.children[i].data)[-1]
+            
+            attributes = dict[table]
+
+            new_node = Node("PROJECTION" + " " + attributes)
+
+            new_node.insert_node(tree_node, tree_node.children[i])
+
+    return
 
 
 def main():
@@ -266,7 +296,9 @@ def main():
     print("--------------------------------------------------\n")
 
     # SELECTIVITY
-
+    print("-----HEURISTIC 3: Smallest Selectivity First------")
+    print_tree(tree[0], 0)
+    print("--------------------------------------------------\n")
 
     # Merge selections and cartesians into joins
     create_joins(tree[0])
@@ -274,8 +306,14 @@ def main():
     print_tree(tree[0], 0)
     print("--------------------------------------------------\n")
 
-
     # Add projection throughout the query tree
+    if "PROJECTION" not in str(tree[0].data):
+        add_projections(tree[0].children[0], {})
+    else:
+        add_projections(tree[0], {})
+    print("--------HEURISTIC 5: Push Projections Down--------")
+    print_tree(tree[0], 0)
+    print("--------------------------------------------------\n")
 
     return
 
