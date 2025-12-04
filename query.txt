@@ -1,7 +1,7 @@
 -- SQL Query --
-SELECT dept_name, AVG(salary)
-FROM Employees E, Departments D
-WHERE E.dept_id = D.id AND E.salary > 50000
-GROUP BY dept_name
-HAVING AVG(salary) > 60000
-ORDER BY AVG(salary) DESC;
+SELECT E.Lname
+FROM EMPLOYEE E, WORKS_ON W, PROJECT P
+WHERE P.Pname='Aquarius' AND
+      P.Pnumber=W.Pno AND
+      E.Essn=W.Ssn AND
+      E.Bdate>'1957-12-31';
