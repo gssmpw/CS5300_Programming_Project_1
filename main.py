@@ -320,6 +320,8 @@ def main():
     
     expression = sqlglot.parse_one(query)
     starting_arr = [expression.find(exp.Order), find_projection(expression), expression.find(exp.Having), expression.find(exp.Group), expression.find(exp.Where)]
+    join_arr = [expression.find(exp.Join)]
+    print(join_arr)
     tables = find_tables(expression)
 
     tree = build_canonical(starting_arr, tables)
