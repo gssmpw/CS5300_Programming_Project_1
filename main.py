@@ -232,51 +232,39 @@ def create_joins(tree_node):
 # Adds projections to the query tree in the correct places
 def add_projections(tree_node, dict):
     if "PROJECTION" in str(tree_node.data):
-        # 1. Start a new dictionary for projections below this node
+        #Start a new dictionary for projections below this node
         dict = {} 
-        
-        # 2. Extract projection attributes from the current PROJECTION node
+        #Extract projection attributes from the current PROJECTION node
         proj = str(tree_node.data).strip().split()[1:]
-        
-        # 3. Populate the dictionary (key=table_alias, value=attributes_to_project)
+        #Populate the dictionary (key=table_alias, value=attributes_to_project)
         for i in proj:
             temp = i.split('.')
             # Append the attribute to the existing string, initializing if necessary
             dict[temp[0]] = dict.setdefault(temp[0], "").strip() + " " + i 
-            
-        # 4. Recursively call with the new dict for the child
+        # Recursively call with the new dict for the child
         # Strip to ensure the value in the dict is clean
-        add_projections(tree_node.children[0], {k: v.strip() for k, v in dict.items()})
-        
+        add_projections(tree_node.children[0], {k: v.strip() for k, v in dict.items()})   
     elif "JOIN" in str(tree_node.data):
-        # 1. Parse the JOIN condition
+        #Parse the JOIN condition
         join = str(tree_node.data).strip().split()
-        
         att1 = join[1].split('.') 
         att2 = join[3].split('.') 
-        
         table1_alias = att1[0] 
         table2_alias = att2[0] 
-        
-        # 2. Initialize projection dictionaries for the two children, inheriting required attributes from above (`dict`)
+        #Initialize projection dictionaries for the two children, inheriting required attributes from above (`dict`)
         proj_dict1 = {k: v for k, v in dict.items()}
         proj_dict2 = {k: v for k, v in dict.items()}
-
-        # 3. Add the join attributes themselves to the required projections for the respective children
+        # Add the join attributes themselves to the required projections for the respective children
         # Ensure only the attribute (e.g., 'E.Essn') is added to the correct alias entry (e.g., 'E')
         # We only add the attribute if it's not already present from the parent
         if join[1] not in proj_dict1.setdefault(table1_alias, ""):
             proj_dict1[table1_alias] = proj_dict1.setdefault(table1_alias, "") + " " + join[1]
-        
         if join[3] not in proj_dict2.setdefault(table2_alias, ""):
             proj_dict2[table2_alias] = proj_dict2.setdefault(table2_alias, "") + " " + join[3]
-
-
-        # 4. Process children in reverse order (to avoid index issues during insertion)
+        #Process children in reverse order (to avoid index issues during insertion)
         for child_node in reversed(tree_node.children):
             table_alias = None
             current_proj_dict = None
-            
             # --- Logic to find the leaf table alias under the current child's subtree ---
             temp_node = child_node
             # Traverse down until a leaf (table) node is reached
@@ -287,7 +275,6 @@ def add_projections(tree_node, dict):
                 else:
                     # In a JOIN/PROJECTION tree, the leftmost child often leads to the base
                     temp_node = temp_node.children[0] 
-            
             # Extract the alias from the leaf node's data (e.g., 'EMPLOYEE AS E' -> 'E')
             node_data = str(temp_node.data).strip()
             if ' AS ' in node_data:
@@ -295,38 +282,30 @@ def add_projections(tree_node, dict):
             # This is a fallback based on your original logic (e.g., last character is the alias)
             elif node_data and node_data[-1].isalpha(): 
                 table_alias = node_data[-1] 
-
-            # 5. Assign the correct projection dictionary based on the table alias
+            # Assign the correct projection dictionary based on the table alias
             if table_alias == table1_alias:
                 current_proj_dict = proj_dict1
             elif table_alias == table2_alias:
                 current_proj_dict = proj_dict2
-            
-            # **FIX:** Ensure current_proj_dict is not None for safety, although it should be set here
+            # Ensure current_proj_dict is not None
             if current_proj_dict is None:
                 current_proj_dict = {} 
-
-
-            # 6. Build and insert the PROJECTION node
+            # Build and insert the PROJECTION node
             if table_alias in current_proj_dict:
                 # Remove extra spaces and split into unique attributes
                 attributes_list = current_proj_dict[table_alias].strip().split()
                 # Use set to handle duplicates from the parent/join attribute
                 attributes = " ".join(sorted(list(set(attributes_list))))
-                
                 # Check if there are attributes to project for this branch
                 if attributes:
                     new_node = Node("PROJECTION " + attributes)
-                    
                     # Insert the new projection node
                     new_node.insert_node(tree_node, child_node)
-
-            # 7. Continue recursion down the tree for complex children (JOIN/PROJECTION)
+            # Continue recursion down the tree for complex children (JOIN/PROJECTION)
             if "JOIN" in str(child_node.data) or "PROJECTION" in str(child_node.data):
                 # Pass down the projection dictionary determined for this branch
                 add_projections(child_node, current_proj_dict) 
-    
-    # 8. Base case for non-JOIN, non-PROJECTION inner nodes (like SELECT, GROUP BY, ORDER BY)
+    # Base case for non-JOIN, non-PROJECTION inner nodes (like SELECT, GROUP BY, ORDER BY)
     else:
         if tree_node.children != []:
             # Pass down the projection dict for the child
