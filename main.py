@@ -313,7 +313,6 @@ def add_projections(tree_node, dict):
         
     return
 
-
 def main():
     with open("input1.txt", "r") as file:
         input = file.read()

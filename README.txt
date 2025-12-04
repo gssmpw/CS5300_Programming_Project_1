@@ -7,6 +7,8 @@ Input Requirements
 Input for this program is accepted as a text file with the schema and SQL query.
 The schema must be placed before the query, and both must include a header labled 
 -- Schema Definitions -- and -- SQL Query --
+The SQL query and schema must not include any special characters that can not be typed by a standard 
+keyboard. The main focus here is non-standard apostrophies characters.
 
 Output Description
 The output for this program will show in the console.
