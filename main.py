@@ -51,6 +51,17 @@ def find_projection(expression):
     return projections
 
 
+def find_joins(expression):
+    join_clauses = expression.find_all(exp.Join)
+    joins = []
+
+    # Iterate through the found Select expressions (there should typically be one for a single query)
+    for join_clause in join_clauses:
+        joins.append(join_clause.sql())
+
+    return joins
+
+
 # Used to parse out all the tables needed to be joined in the query tree
 def find_tables(expression):
     tables = []
@@ -98,6 +109,25 @@ def build_canonical(expression, from_clause):
             i += 2
 
     return tree
+
+
+def insert_joins(tree_node, joins_arr):
+    joins = joins_arr
+    if tree_node.data == "X":
+        table = str(tree_node.children[0].data)[-1]
+        for i in joins:
+            temp = i.split("ON")
+            tbl1 = temp[1].split()[0][0]
+            tbl2 = temp[1].split()[2][0]
+            if tbl1 == table or tbl2 == table:
+                tree_node.data = i
+                joins.remove(i)
+        insert_joins(tree_node.children[1], joins)
+    elif tree_node is not None:
+        if tree_node.children != []:
+            for child_node in tree_node.children:
+                insert_joins(child_node, joins)
+    return
 
 
 # Function for printing trees
@@ -320,11 +350,12 @@ def main():
     
     expression = sqlglot.parse_one(query)
     starting_arr = [expression.find(exp.Order), find_projection(expression), expression.find(exp.Having), expression.find(exp.Group), expression.find(exp.Where)]
-    join_arr = [expression.find(exp.Join)]
-    print(join_arr)
+    join_arr = find_joins(expression)
     tables = find_tables(expression)
 
     tree = build_canonical(starting_arr, tables)
+    if "JOIN" in join_arr[0]:
+        insert_joins(tree[0], join_arr)
 
     # Print the canonical query tree
     print("---------------CANONICAL QUERY TREE---------------")
