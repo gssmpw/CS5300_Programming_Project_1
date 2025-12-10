@@ -142,12 +142,11 @@ def print_tree(tree_node, depth):
 
 # Take in a tree and separate the conjunctive selection conditions
 def cascade_selection(tree_node):
-    if not tree_node.children:
-        return
-
     if "SELECT" in str(tree_node.children[0].data):
         tree_node.children[0].data = str(tree_node.children[0].data).split("AND")
         tree_node.children[0].data = "SELECT".join(tree_node.children[0].data)
+        return
+    elif tree_node.children == []:
         return
     else:
         cascade_selection(tree_node.children[0])
@@ -185,15 +184,13 @@ def find_common_cartesian(start, target):
 def selection_down(tree_node):
     select_statements = []
     leaf_nodes = []
-
-    if not tree_node.children:
-        return
-
     find_leaves(tree_node, leaf_nodes)
 
     # Find all selections that need to be pushed down
     if "SELECT" in str(tree_node.children[0].data):
         select_statements = str(tree_node.children[0].data).strip().split("SELECT")
+    elif tree_node.children == []:
+        return
     else:
         selection_down(tree_node.children[0])
 
@@ -269,6 +266,7 @@ def add_projections(tree_node, dict):
         dict = {} 
         #Extract projection attributes from the current PROJECTION node
         proj = str(tree_node.data).strip().split()[1:]
+        #Populate the dictionary (key=table_alias, value=attributes_to_project)
         for i in proj:
             temp = i.split('.')
             # Append the attribute to the existing string, initializing if necessary
@@ -287,6 +285,8 @@ def add_projections(tree_node, dict):
         proj_dict1 = {k: v for k, v in dict.items()}
         proj_dict2 = {k: v for k, v in dict.items()}
         # Add the join attributes themselves to the required projections for the respective children
+        # Ensure only the attribute (e.g., 'E.Essn') is added to the correct alias entry (e.g., 'E')
+        # We only add the attribute if it's not already present from the parent
         if join[1] not in proj_dict1.setdefault(table1_alias, ""):
             proj_dict1[table1_alias] = proj_dict1.setdefault(table1_alias, "") + " " + join[1]
         if join[3] not in proj_dict2.setdefault(table2_alias, ""):
@@ -303,7 +303,9 @@ def add_projections(tree_node, dict):
                 if "SELECT" in str(temp_node.data) and temp_node.children:
                     temp_node = temp_node.children[0]
                 else:
+                    # In a JOIN/PROJECTION tree, the leftmost child often leads to the base
                     temp_node = temp_node.children[0] 
+            # Extract the alias from the leaf node's data (e.g., 'EMPLOYEE AS E' -> 'E')
             node_data = str(temp_node.data).strip()
             if ' AS ' in node_data:
                 table_alias = node_data.split(' AS ')[1].strip()
@@ -315,6 +317,7 @@ def add_projections(tree_node, dict):
                 current_proj_dict = proj_dict1
             elif table_alias == table2_alias:
                 current_proj_dict = proj_dict2
+            # Ensure current_proj_dict is not None
             if current_proj_dict is None:
                 current_proj_dict = {} 
             # Build and insert the PROJECTION node
